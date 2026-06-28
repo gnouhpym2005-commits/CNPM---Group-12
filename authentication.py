@@ -1,43 +1,73 @@
 from tkinter import messagebox
-from database import Database
+from database.database import Database
+
 
 class Authentication:
-    def login(self, username, password):
 
-        db = Database()
-        conn = db.connect()
+    def __init__(self):
+
+        self.db = Database()
+
+    def login(self, user_id, password, role):
+
+        conn = self.db.connect()
 
         if conn is None:
-            messagebox.showerror("Error", "Cannot connect to database!")
             return None
 
         cursor = conn.cursor()
 
-        cursor.execute("""
-            SELECT Role, Status
-            FROM Users
-            WHERE Username = ? AND Password = ?
-        """, (username, password))
+        try:
 
-        user = cursor.fetchone()
+            if role == "Student":
 
-        conn.close()
+                sql = """
+                SELECT studentID
+                FROM Student
+                WHERE studentID = ?
+                AND password = ?
+                """
 
-        if user is None:
+            elif role == "Lecturer":
+
+                sql = """
+                SELECT lecturerID
+                FROM Lecturer
+                WHERE lecturerID = ?
+                AND password = ?
+                """
+
+            else:
+
+                sql = """
+                SELECT adminID
+                FROM Admin
+                WHERE adminID = ?
+                AND password = ?
+                """
+
+            cursor.execute(sql, (user_id, password))
+
+            result = cursor.fetchone()
+
+            conn.close()
+
+            if result:
+
+                return role
+
             messagebox.showerror(
                 "Login Failed",
-                "Invalid username or password!"
+                "Invalid ID or Password."
             )
+
             return None
 
-        role = user[0]
-        status = user[1]
+        except Exception as e:
 
-        if status == "Locked":
-            messagebox.showwarning(
-                "Warning",
-                "Your account has been locked!"
+            messagebox.showerror(
+                "Database Error",
+                str(e)
             )
-            return None
 
-        return role
+            return None
