@@ -6,6 +6,7 @@ from student.search_course import SearchCourse
 from student.register_course import RegisterCourse
 from student.my_courses import MyCourses
 from student.timetable import TimeTable
+from change_password import ChangePasswordApp
 
 class StudentDashboard:
     def __init__(self, student_id):
@@ -105,6 +106,23 @@ class StudentDashboard:
             height=1
         ).pack(fill="x", padx=15, pady=20)
 
+         # Change Password
+        tk.Button(
+            sidebar,
+            text="🔑 Change Password",
+            font=("Segoe UI",11),
+            bg="#F5F2E8",
+            relief="flat",
+            anchor="w",
+            padx=20,
+            activebackground="#DCEEFF",
+            command=lambda: self.change_page(
+            self.open_change_password,
+                "🔑 Change Password"
+            )   
+        ).pack(fill="x", pady=3)
+
+        # Logout
         tk.Button(
             sidebar,
             text="🚪 Logout",
@@ -318,6 +336,14 @@ class StudentDashboard:
     def open_timetable(self):
         self.clear_content()
         TimeTable(self.content_frame, self.student_id)
+
+    def open_change_password(self):
+        self.clear_content()
+        ChangePasswordApp(
+            self.content_frame,
+            self.student_id,
+            "Student"
+        )
 
     def logout(self):
         answer = messagebox.askyesno(

@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-from database.database import Database
+from database.student_repository import StudentRepository
 
 class SearchCourse:
     def __init__(self, parent, student_id):
@@ -8,8 +8,7 @@ class SearchCourse:
         self.parent = parent
         self.student_id = student_id
 
-        self.db = Database()
-        self.conn = self.db.connect()
+        self.repository = StudentRepository() 
 
         self.window = tk.Frame(self.parent,bg="white")
 
@@ -196,37 +195,7 @@ class SearchCourse:
         for item in self.tree.get_children():
             self.tree.delete(item)
 
-        cursor = self.conn.cursor()
-
-        cursor.execute("""
-            SELECT
-                cc.classID,
-                s.subjectName,
-                s.credits,
-                l.fullName,
-                cc.dayOfWeek,
-                cc.currentEnrolled,
-                cc.maxCapacity
-
-            FROM CourseClass cc
-
-            JOIN Subject s ON cc.subjectID = s.subjectID
-
-            JOIN Lecturer l ON cc.lecturerID = l.lecturerID
-
-            JOIN RegistrationPeriod rp ON cc.periodID = rp.periodID
-
-            WHERE
-                rp.status='Open'
-                AND cc.status='Open'
-                AND s.subjectID LIKE ?
-                AND s.subjectName LIKE ?
-        """,
-        "%" + code + "%",
-        "%" + name + "%"
-        )
-
-        rows = cursor.fetchall()
+        rows = self.repository.search_courses(code, name)
 
         self.total_label.config(
             text=f"Total: {len(rows)} courses"
@@ -268,33 +237,7 @@ class SearchCourse:
 
         class_id = self.tree.item(selected)["values"][0]
 
-        cursor = self.conn.cursor()
-
-        cursor.execute("""
-            SELECT
-                s.subjectID,
-                s.subjectName,
-                s.credits,
-                s.department,
-                s.description,
-                l.fullName,
-                cc.room,
-                cc.dayOfWeek,
-                cc.startTime,
-                cc.endTime,
-                cc.currentEnrolled,
-                cc.maxCapacity
-
-            FROM CourseClass cc
-
-            JOIN Subject s ON cc.subjectID = s.subjectID
-                       
-            JOIN Lecturer l ON cc.lecturerID = l.lecturerID
-
-            WHERE cc.classID = ?
-        """, class_id)
-
-        course = cursor.fetchone()
+        course = self.repository.search_view_detail(class_id)
 
         if not course:
             messagebox.showerror(

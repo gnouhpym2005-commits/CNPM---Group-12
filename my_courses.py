@@ -1,15 +1,13 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-from database.database import Database
-
+from database.student_repository import StudentRepository
 class MyCourses:
     def __init__(self, parent, student_id):
 
         self.parent = parent
         self.student_id = student_id
 
-        self.db = Database()
-        self.conn = self.db.connect()
+        self.repository = StudentRepository() 
 
         self.window = tk.Frame(self.parent, bg="white")
 
@@ -169,30 +167,7 @@ class MyCourses:
         for item in self.tree.get_children():
             self.tree.delete(item)
 
-        cursor=self.conn.cursor()
-
-        cursor.execute("""
-        SELECT
-            r.regID,
-            cc.classID,
-            s.subjectID,
-            s.subjectName,
-            s.credits,
-            CONCAT(cc.dayOfWeek,' ',
-                   CONVERT(varchar(5), cc.startTime, 108), '-',
-                   CONVERT(varchar(5), cc.endTime, 108)) AS schedule
-                       
-        FROM Registration r
-
-        JOIN CourseClass cc ON r.classID=cc.classID
-
-        JOIN Subject s ON cc.subjectID=s.subjectID
-
-        WHERE r.studentID=?
-
-        """, (self.student_id,))
-
-        rows=cursor.fetchall()
+        rows = self.repository.get_my_courses(self.student_id)
 
         self.total_label.config(
             text=f"Total: {len(rows)} courses"
@@ -236,30 +211,17 @@ class MyCourses:
         if not answer:
             return
 
-        cursor = self.conn.cursor()
-
         try:
-            # Delete registration
-            cursor.execute("""
-                DELETE FROM Registration
-                WHERE regID = ?
-            """, (reg_id,))
+            self.repository.drop_course(reg_id, class_id)
 
-            # Update available seats
-            cursor.execute("""
-                UPDATE CourseClass
-                SET currentEnrolled = currentEnrolled - 1
-                WHERE classID = ?
-            """, (class_id,))
-
-            self.conn.commit()
-
-            messagebox.showinfo("Success","Course dropped successfully."
+            messagebox.showinfo(
+                "Success",
+                "Course dropped successfully."
             )
+
             self.load_courses()
 
         except Exception as e:
-            self.conn.rollback()
             messagebox.showerror(
                 "Database Error",
                 str(e)

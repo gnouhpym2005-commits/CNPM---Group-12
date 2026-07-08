@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
-from database.database import Database
+
+from database.student_repository import StudentRepository
 
 class TimeTable:
     def __init__(self, parent, student_id):
@@ -8,8 +9,7 @@ class TimeTable:
         self.parent = parent
         self.student_id = student_id
 
-        self.db = Database()
-        self.conn = self.db.connect()
+        self.repository = StudentRepository() 
 
         self.window = tk.Frame(self.parent,bg="white")
 
@@ -18,7 +18,6 @@ class TimeTable:
         self.window.configure(bg="#F5F6FA")
 
         self.create_widgets()
-
         self.load_timetable()
 
     # UI
@@ -103,11 +102,11 @@ class TimeTable:
 
         # Các khung giờ cố định
         timetable = {
-            "7:00 - 9:00": ["-", "-", "-", "-", "-"],
-            "9:00 - 11:00": ["-", "-", "-", "-", "-"],
-            "11:00 - 13:00": ["-", "-", "-", "-", "-"],
-            "13:00 - 15:00": ["-", "-", "-", "-", "-"],
-            "15:00 - 17:00": ["-", "-", "-", "-", "-"]
+            "06:45 - 09:15": ["-"] * 5,
+            "09:25 - 11:55": ["-"] * 5,
+            "12:10 - 14:40": ["-"] * 5,
+            "14:50 - 17:20": ["-"] * 5,
+            "17:30 - 20:00": ["-"] * 5
         }
 
         day_index = {
@@ -125,25 +124,7 @@ class TimeTable:
             "Fri": 4
         }
 
-        cursor = self.conn.cursor()
-
-        cursor.execute("""
-            SELECT
-                s.subjectID,
-                cc.dayOfWeek,
-                cc.startTime,
-                cc.endTime
-            FROM Registration r
-
-            JOIN CourseClass cc ON r.classID = cc.classID
-
-            JOIN Subject s ON cc.subjectID = s.subjectID
-
-            WHERE r.studentID = ? AND r.status IN ('Pending','Approved')
-
-        """, (self.student_id,))
-
-        rows = cursor.fetchall()
+        rows = self.repository.get_timetable(self.student_id)
 
         for row in rows:
             # Chuyển giờ thành chuỗi để so sánh

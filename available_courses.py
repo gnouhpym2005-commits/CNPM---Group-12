@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-from database.database import Database
+from database.student_repository import StudentRepository
 
 class AvailableCourses:
     def __init__(self, parent, student_id):
@@ -8,8 +8,7 @@ class AvailableCourses:
         self.parent = parent
         self.student_id = student_id
 
-        self.db = Database()
-        self.conn = self.db.connect()
+        self.repository = StudentRepository() 
 
         self.window = tk.Frame(self.parent, bg="white")
         self.window.pack(fill="both", expand=True)
@@ -115,7 +114,7 @@ class AvailableCourses:
 
         scrollbar.config(command=self.tree.yview)
 
-        widths = [90, 240, 70, 170, 90, 120, 120]
+        widths = [90, 240, 70, 170, 90, 180, 120]
 
         for col, width in zip(columns, widths):
             self.tree.heading(col, text=col)
@@ -185,35 +184,15 @@ class AvailableCourses:
         for item in self.tree.get_children():
             self.tree.delete(item)
 
-        cursor = self.conn.cursor()
-
-        cursor.execute("""
-            SELECT
-                cc.classID,
-                s.subjectName,
-                s.credits,
-                l.fullName,
-                cc.room,
-                cc.dayOfWeek,
-                cc.currentEnrolled,
-                cc.maxCapacity
-            FROM CourseClass cc
-            
-            JOIN Subject s ON cc.subjectID=s.subjectID
-
-            JOIN Lecturer l ON cc.lecturerID=l.lecturerID
-
-            JOIN RegistrationPeriod rp ON cc.periodID=rp.periodID
-
-            WHERE rp.status='Open' AND cc.status='Open'
-        """)
-
-        rows = cursor.fetchall()
+        rows = self.repository.get_available_courses()
 
         self.total_label.config(text=f"Total: {len(rows)} courses")
 
         for row in rows:
             available = row.maxCapacity - row.currentEnrolled
+
+            schedule = f"{row.dayOfWeek} ({row.startTime} - {row.endTime})"
+
             self.tree.insert(
                 "",
                 tk.END,
@@ -223,7 +202,7 @@ class AvailableCourses:
                     row.credits,
                     row.fullName,
                     row.room,
-                    row.dayOfWeek,
+                    schedule,
                     available
                 )
             )
@@ -237,37 +216,8 @@ class AvailableCourses:
         for item in self.tree.get_children():
             self.tree.delete(item)
 
-        cursor = self.conn.cursor()
-
-        cursor.execute("""
-            SELECT
-                cc.classID,
-                s.subjectName,
-                s.credits,
-                l.fullName,
-                cc.room,
-                cc.dayOfWeek,
-                cc.currentEnrolled,
-                cc.maxCapacity
-            FROM CourseClass cc
-            JOIN Subject s ON cc.subjectID = s.subjectID
-            JOIN Lecturer l ON cc.lecturerID = l.lecturerID
-            JOIN RegistrationPeriod rp ON cc.periodID = rp.periodID
-            WHERE rp.status='Open'
-            AND cc.status='Open'
-            AND (
-                    s.subjectName LIKE ?
-                    OR cc.classID LIKE ?
-                    OR s.subjectID LIKE ?
-            )
-        """, (
-            f"%{keyword}%",
-            f"%{keyword}%",
-            f"%{keyword}%"
-        ))
-
-        rows = cursor.fetchall()
-
+        
+        rows = self.repository.get_search_courses()
         self.total_label.config(text=f"Total: {len(rows)} courses")
 
         for row in rows:
@@ -301,34 +251,7 @@ class AvailableCourses:
 
         class_id = self.tree.item(selected)["values"][0]
 
-        cursor = self.conn.cursor()
-
-        cursor.execute("""
-            SELECT
-                s.subjectID,
-                s.subjectName,
-                s.credits,
-                s.department,
-                s.description,
-                l.fullName,
-                cc.room,
-                cc.dayOfWeek,
-                cc.startTime,
-                cc.endTime,
-                cc.currentEnrolled,
-                cc.maxCapacity
-            FROM CourseClass cc
-                       
-            JOIN Subject s ON cc.subjectID = s.subjectID
-
-            JOIN Lecturer l ON cc.lecturerID = l.lecturerID
-
-            WHERE cc.classID = ?
-                       
-        """, class_id)
-
-        course = cursor.fetchone()
-
+        course = self.repository.get_view_detail(class_id)
         if not course:
             messagebox.showerror(
                 "Error",
